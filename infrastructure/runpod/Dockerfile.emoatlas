@@ -1,0 +1,33 @@
+FROM python:3.11.13-slim-bookworm
+
+COPY --from=ghcr.io/astral-sh/uv:0.9.28 /uv /uvx /bin/
+ENV UV_LINK_MODE=copy \
+    UV_PYTHON_INSTALL_DIR=/opt/uv-python \
+    TRANSLATION_AUDIT_DATA_ROOT=/dev/shm/translation-audit/plaintext/current/data \
+    TRANSLATION_AUDIT_ARTIFACT_ROOT=/workspace \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends age ca-certificates git jq \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/emoatlas-runtime
+COPY tools/emoatlas/pyproject.toml tools/emoatlas/uv.lock ./
+RUN uv python install 3.11 \
+    && uv sync --frozen --no-install-project --no-dev
+COPY tools/emoatlas/src ./src
+RUN uv sync --frozen --no-dev
+
+WORKDIR /opt/translation-audit/experiments
+COPY experiments/pyproject.toml experiments/uv.lock ./
+RUN uv python install 3.14 \
+    && uv sync --frozen --no-install-project --no-dev
+COPY experiments/README.md ./README.md
+COPY experiments/src ./src
+COPY experiments/conf ./conf
+RUN uv sync --frozen --no-dev
+
+COPY infrastructure/runpod/scripts /opt/translation-audit/runpod-scripts
+RUN chmod 0755 /opt/translation-audit/runpod-scripts/*.sh \
+    && install -m 0755 /opt/translation-audit/runpod-scripts/bootstrap_tool_pod.sh /usr/local/bin/bootstrap-tool-pod
+ENTRYPOINT ["/usr/local/bin/bootstrap-tool-pod"]
+CMD ["uv", "run", "translation-audit", "runtime=runpod_secure", "stage=compute_emotion_features", "runtime.execute=false"]

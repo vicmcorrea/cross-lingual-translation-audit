@@ -1,0 +1,39 @@
+[project]
+name = "translation-audit-emoatlas-runtime"
+version = "0.2.0"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "emoatlas @ git+https://github.com/MassimoStel/emoatlas.git@17b16d736e6935a63ccbbddeff739cd7baddb66c",
+  "en-core-web-lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.8.0/en_core_web_lg-3.8.0-py3-none-any.whl",
+  "pt-core-news-lg @ https://github.com/explosion/spacy-models/releases/download/pt_core_news_lg-3.8.0/pt_core_news_lg-3.8.0-py3-none-any.whl",
+]
+
+[project.scripts]
+emoatlas-worker = "translation_audit_emoatlas.worker:main"
+
+[dependency-groups]
+dev = ["pyright>=1.1.405,<2", "pytest>=8.4,<9", "ruff>=0.12,<1"]
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "src"
+module-name = "translation_audit_emoatlas"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]

@@ -1,0 +1,8 @@
+name: local
+execute: false
+capture_environment: true
+device: cpu
+checkpoint_every_rows: 500
+resume: true
+workers: 1
+store_response_text_in_logs: false

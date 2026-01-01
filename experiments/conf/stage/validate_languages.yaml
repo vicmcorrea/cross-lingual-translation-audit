@@ -1,0 +1,8 @@
+name: validate_languages
+implementation: validate_languages
+description: Verify reported PT-BR and English languages before model inference
+depends_on: [prepare_cohort]
+upstream_manifests: {}
+input_path: ${data.curated_dir}/paired_responses.parquet
+input_sha256: 776e216d3c734c0c7d3f918c4f6a0f88a3c93d1e6750d8e51e6beb8cc1e07d22
+minimum_relative_distance: 0.05

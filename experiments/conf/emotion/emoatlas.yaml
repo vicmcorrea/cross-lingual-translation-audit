@@ -1,0 +1,22 @@
+name: emoatlas
+repository: https://github.com/MassimoStel/emoatlas.git
+revision: 17b16d736e6935a63ccbbddeff739cd7baddb66c
+frozen: true
+runtime: tools/emoatlas
+python: "3.11"
+languages: [portuguese, english]
+input_path: ${data.curated_dir}/paired_responses.parquet
+outputs: [plutchik_distribution, valence_distribution, semantic_structure]
+features:
+  emotion_model: plutchik
+  semantic_enrichment: []
+  max_distance: 3
+  multiplex: false
+worker:
+  python_candidates:
+    - /opt/emoatlas-runtime/.venv/bin/python
+    - ${project_root:}/tools/emoatlas/.venv/bin/python
+  module: translation_audit_emoatlas.worker
+  portuguese_model: pt_core_news_lg
+  english_model: en_core_web_lg
+  max_shard_retries: 2

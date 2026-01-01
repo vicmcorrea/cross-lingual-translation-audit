@@ -1,0 +1,13 @@
+name: wmt23_cometkiwi_da_xl
+repository: Unbabel/wmt23-cometkiwi-da-xl
+revision: 33858b2239a139d497d9c74952c88b89a8c06213
+frozen: true
+gated: true
+requires_terms_acceptance: true
+batch_size: 8
+precision: float16
+inputs: [source_pt, translation_en]
+reference_free: true
+worker:
+  python_executable: ${project_root:}/tools/comet/.venv/bin/python
+  script: ${project_root:}/tools/comet/worker.py

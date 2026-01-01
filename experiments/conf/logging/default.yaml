@@ -1,0 +1,3 @@
+json_filename: events.jsonl
+level: INFO
+include_console: true

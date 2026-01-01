@@ -1,0 +1,6 @@
+name: analyze
+implementation: analyze
+description: Run frozen alignment, transfer, and robustness analyses
+depends_on: [compute_embeddings, estimate_translation_quality, compute_emotion_features]
+upstream_manifests: {}
+output_directory: analysis

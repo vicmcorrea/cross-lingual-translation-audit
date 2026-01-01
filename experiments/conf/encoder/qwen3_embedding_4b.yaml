@@ -1,0 +1,21 @@
+name: qwen3_embedding_4b
+repository: Qwen/Qwen3-Embedding-4B
+revision: 5cf2132abc99cad020ac570b19d031efec650f2b
+frozen: true
+trust_remote_code: false
+normalize_embeddings: true
+pooling: model_default
+precision: bfloat16
+batch_size: 32
+max_length: 8192
+directions:
+  pt_to_en:
+    query_column: source_pt
+    document_column: translation_en
+    query_instruction: "Retrieve the English translation that preserves the meaning of this Brazilian Portuguese workplace response."
+    document_instruction: null
+  en_to_pt:
+    query_column: translation_en
+    document_column: source_pt
+    query_instruction: "Retrieve the Brazilian Portuguese source that has the same meaning as this English workplace response."
+    document_instruction: null

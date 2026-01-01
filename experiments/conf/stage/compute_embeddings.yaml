@@ -1,0 +1,9 @@
+name: compute_embeddings
+implementation: compute_embeddings
+description: Compute frozen PT and EN embeddings in resumable shards
+depends_on: [validate_languages]
+upstream_manifests: {}
+backend: sentence_transformers
+resume_from_run: null
+synthetic_dimension: 16
+synthetic_seed: 1729

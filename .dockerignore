@@ -1,0 +1,17 @@
+.git
+.env
+/data
+/artifacts
+/outputs
+/runs
+/checkpoints
+/logs
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+*.age
+*.parquet
+*.csv
+*.jsonl
+*.log

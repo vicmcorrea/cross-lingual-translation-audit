@@ -1,0 +1,26 @@
+defaults:
+  - stage: prepare_cohort
+  - data: paired_triads_v1
+  - encoder: qwen3_embedding_4b
+  - qe: cometkiwi_xl
+  - emotion: emoatlas
+  - runtime: local
+  - analysis: primary
+  - logging: default
+  - _self_
+
+project:
+  name: cross_lingual_translation_audit
+  protocol_version: "1.0.0"
+  artifact_root: ${artifact_root:}
+  imported_run_root: null
+
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: ${artifact_root:}/runs/${now:%Y-%m-%d}/${now:%H-%M-%S}_${run_uuid:}
+  sweep:
+    dir: ${artifact_root:}/runs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}_${run_uuid:}
+    subdir: ${hydra.job.num}
+  output_subdir: .hydra

@@ -1,0 +1,19 @@
+name: runpod_secure
+execute: false
+capture_environment: true
+cloud: secure
+device: cuda
+preferred_gpu: NVIDIA A40
+fallback_gpus:
+  - NVIDIA RTX A6000
+  - NVIDIA GeForce RTX 4090
+checkpoint_every_rows: 500
+resume: true
+workers: 1
+store_response_text_in_logs: false
+automatic_stop_hours: 6
+automatic_terminate_hours: 6
+delete_pod_on_completion: true
+delete_pod_on_failure: true
+verify_pod_deletion: true
+resource_creation_allowed: false

@@ -1,0 +1,5 @@
+name: compute_emotion_features
+implementation: compute_emotion_features
+description: Compute bilingual EmoAtlas features
+depends_on: [validate_languages]
+upstream_manifests: {}

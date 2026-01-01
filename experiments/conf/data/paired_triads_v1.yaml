@@ -1,0 +1,37 @@
+name: paired_triads_v1
+raw_snapshot: ${data_root:}/raw/snapshots/source_snapshot_v1
+curated_dir: ${data_root:}/curated/paired_triads_v1
+sanitized_manifest: ${data_root:}/manifests/paired_triads_v1.json
+private_selection_manifest: ${data_root:}/private/cohort_selection_v1.json
+expected:
+  selected_raw_rows: 61596
+  paired_responses: 44118
+  participants: 14706
+  prompts: 12
+cohorts:
+  cohort_2023_a:
+    year: 2023
+    participants: 4858
+  cohort_2024_a:
+    year: 2024
+    participants: 4022
+  cohort_2025_a:
+    year: 2025
+    participants: 5049
+  cohort_2025_b:
+    year: 2025
+    participants: 777
+prompt_families:
+  q1: positive_workplace
+  q2: improvement
+  q3: mental_health_wellbeing
+normalization:
+  version: nfkc_whitespace_v1
+  purpose: deduplication_and_quality_control_only
+deduplication:
+  keys: [cohort_id, respondent_key, question_index, normalized_pt, normalized_en]
+  representative: lexicographically_smallest_source_record_id
+language_policy:
+  reported_source: pt
+  reported_target: en
+  automatic_verification: lingua_2_2_0_flag_only

@@ -1,0 +1,9 @@
+name: estimate_translation_quality
+implementation: estimate_translation_quality
+description: Compute reference-free translation quality scores
+depends_on: [validate_languages]
+upstream_manifests: {}
+input_filename: paired_responses.parquet
+output_directory: translation_quality
+output_filename: cometkiwi_scores.parquet
+resume_from_run: null

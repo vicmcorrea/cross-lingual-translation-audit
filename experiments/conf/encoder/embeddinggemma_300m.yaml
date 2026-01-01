@@ -1,0 +1,10 @@
+name: embeddinggemma_300m
+repository: google/embeddinggemma-300m
+revision: 57c266a740f537b4dc058e1b0cda161fd15afa75
+frozen: true
+trust_remote_code: false
+normalize_embeddings: true
+precision: float16
+batch_size: 128
+max_length: 2048
+role: compact_sensitivity_model

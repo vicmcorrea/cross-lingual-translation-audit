@@ -1,0 +1,30 @@
+protocol: frozen_cross_language_preservation_v1
+unit: paired_response
+grouping: participant
+primary:
+  semantic_similarity: cosine
+  retrieval: bidirectional_multi_positive
+  translation_quality: reference_free_comet
+  emotional_preservation: bilingual_emoatlas
+validation:
+  transfer: leave_one_cohort_out
+  tuning: nested_training_cohorts_only
+  duplicate_policy: identical_texts_are_multi_positive
+  confidence_intervals: cluster_bootstrap_participant
+  bootstrap_repetitions: 2000
+  confidence_level: 0.95
+  seed: 20260820
+  ridge_alphas: [0.01, 0.1, 1.0, 10.0, 100.0]
+  ridge_default_alpha: 1.0
+compute:
+  device: auto
+  retrieval_batch_size: 128
+  bootstrap_batch_size: 128
+sensitivity:
+  - exclude_two_words_or_fewer
+  - exclude_five_words_or_fewer
+  - exclude_exact_normalized_copy
+  - one_repeated_response_per_group
+  - prompt_family
+  - cohort
+  - encoder_scale

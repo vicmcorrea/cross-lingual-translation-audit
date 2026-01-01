@@ -1,0 +1,11 @@
+.git
+.env
+/data
+/artifacts
+/article
+/third_party/checkouts
+/experiments/legacy
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache

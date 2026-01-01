@@ -1,0 +1,4 @@
+name: prepare_cohort
+implementation: prepare_cohort
+description: Build or validate the immutable paired triad cohort
+depends_on: []
