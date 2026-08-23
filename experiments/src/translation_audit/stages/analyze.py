@@ -325,7 +325,7 @@ class AnalyzeStage:
                 "protocol": str(self.cfg.analysis.protocol),
                 "response_text_columns_persisted": False,
                 "comet_interpretation": "automated reference-free criterion; not human gold",
-                "claim_scope": "descriptive estimates and automated convergent validation only",
+                "claim_scope": "descriptive estimates and exploratory automated convergence only",
                 "embedding_model": embedding_manifest.get("model"),
                 "comet_model_repository": comet_manifest.get("model_repository"),
                 "comet_model_revision": comet_manifest.get("model_revision"),
@@ -333,7 +333,7 @@ class AnalyzeStage:
                 "emotion_revision": emotion_manifest.get("revision"),
                 "retrieval_device": retrieval_output.device,
                 "bootstrap": {
-                    "method": "participant-clustered percentile bootstrap",
+                    "method": "survey-specific respondent-record-cluster percentile bootstrap",
                     "repetitions": int(self.cfg.analysis.validation.bootstrap_repetitions),
                     "confidence_level": float(self.cfg.analysis.validation.confidence_level),
                     "seed": int(self.cfg.analysis.validation.seed),

@@ -1,6 +1,6 @@
 # Cross-Lingual Translation Audit
 
-This repository contains the analysis code for a reference-free audit of paired Portuguese and English survey translations. It includes the Hydra pipeline, frozen model configurations, statistical analyses, and synthetic tests.
+This repository contains the analysis code for a reference-free audit of paired Portuguese and English survey translations. It includes the Hydra pipeline, frozen model configurations, sensitivity-analysis implementation, and synthetic tests.
 
 No survey responses, source identifiers, credentials, or author metadata are included.
 
