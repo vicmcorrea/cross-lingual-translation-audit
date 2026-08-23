@@ -1,0 +1,38 @@
+name: sensitivity_analysis
+implementation: sensitivity_analysis
+description: Run sealed prespecified robustness analyses over text-free artifacts
+depends_on: []
+expected_upstream_stages:
+  primary_analysis: analyze
+  scale_analysis: analyze
+  primary_embeddings: compute_embeddings
+  language_verification: validate_languages
+  emotion_features: compute_emotion_features
+upstream_manifests:
+  primary_analysis: null
+  scale_analysis: null
+  primary_embeddings: null
+  language_verification: null
+  emotion_features: null
+expected_models:
+  primary:
+    repository: Qwen/Qwen3-Embedding-4B
+    revision: 5cf2132abc99cad020ac570b19d031efec650f2b
+  scale:
+    repository: Qwen/Qwen3-Embedding-8B
+    revision: 1d8ad4ca9b3dd8059ad90a75d4983776a23d44af
+expected_counts:
+  paired_rows: 44118
+  language_both_expected: 41925
+  language_ambiguous_only: 1285
+  language_explicit_mismatch: 908
+  target_candidates_en_to_pt: 39416
+  target_candidates_pt_to_en: 38624
+  emotion_both_nonzero_pairs: 30356
+  emotion_both_nonzero_clusters: 13629
+  valence_both_nonzero_pairs: 41926
+  pt_semantic_nodes_zero: 2132
+  en_semantic_nodes_zero: 1017
+  pt_emotion_coverage_profile_disagreement: 176
+  en_emotion_coverage_profile_disagreement: 166
+output_directory: sensitivity_analysis

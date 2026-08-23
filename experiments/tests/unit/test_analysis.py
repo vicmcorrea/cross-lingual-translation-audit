@@ -7,6 +7,7 @@ import pytest
 from omegaconf import DictConfig, OmegaConf
 
 from translation_audit.analysis.metrics import (
+    clustered_bootstrap_conditional_mean,
     clustered_bootstrap_mean,
     compute_retrieval_metrics,
     iter_similarity_batches,
@@ -95,6 +96,20 @@ def test_cluster_bootstrap_is_deterministic_and_participant_clustered() -> None:
     )
     assert first == second
     assert first[0] == 2.5
+
+
+def test_conditional_cluster_bootstrap_retains_zero_contribution_clusters() -> None:
+    estimate, lower, upper = clustered_bootstrap_conditional_mean(
+        np.asarray([1.0, 3.0]),
+        ["a", "a"],
+        ["a", "a", "b", "b"],
+        repetitions=200,
+        confidence_level=0.95,
+        seed=42,
+        batch_size=17,
+    )
+    assert estimate == 2.0
+    assert lower == upper == 2.0
 
 
 def _write_curated(data_root: Path) -> tuple[pl.DataFrame, pl.DataFrame]:

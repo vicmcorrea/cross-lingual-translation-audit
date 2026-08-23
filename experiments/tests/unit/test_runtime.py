@@ -260,6 +260,8 @@ def test_environment_and_exception_manifests_are_safe() -> None:
     environment = collect_environment()
     assert "environment" not in environment
     assert "dependency_file_sha256" in environment
+    assert len(environment["scientific_source_sha256"]) == 64
+    assert environment["scientific_source_file_count"] > 0
     error = summarize_exception(RuntimeError("sensitive message"))
     assert error["error_type"] == "RuntimeError"
     assert "sensitive message" not in json.dumps(error)

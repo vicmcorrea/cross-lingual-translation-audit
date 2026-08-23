@@ -8,7 +8,10 @@ from omegaconf import DictConfig
 
 from translation_audit.registry import create_stage
 from translation_audit.runtime import RunWorkspace
-from translation_audit.runtime.dependencies import verified_upstream_runs
+from translation_audit.runtime.dependencies import (
+    verified_named_upstream_runs,
+    verified_upstream_runs,
+)
 from translation_audit.runtime.files import write_json_exclusive
 from translation_audit.runtime.manifest import summarize_exception
 
@@ -30,7 +33,16 @@ def validate_runtime_contract(cfg: DictConfig) -> None:
 
 def validate_stage_dependencies(cfg: DictConfig) -> dict[str, str]:
     """Require successful upstream run manifests before an executable stage starts."""
+    named_stages = {
+        str(role): str(stage)
+        for role, stage in cfg.stage.get("expected_upstream_stages", {}).items()
+    }
     dependencies = [str(value) for value in cfg.stage.get("depends_on", [])]
+    if named_stages and dependencies:
+        raise ValueError("A stage cannot mix named and ordinary upstream dependencies")
+    if named_stages:
+        _, fingerprints = verified_named_upstream_runs(cfg, named_stages)
+        return fingerprints
     if not dependencies:
         return {}
     _, fingerprints = verified_upstream_runs(cfg, tuple(dependencies))

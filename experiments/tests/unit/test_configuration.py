@@ -36,6 +36,7 @@ def test_active_source_has_no_archived_service_clients() -> None:
         "estimate_translation_quality",
         "compute_emotion_features",
         "analyze",
+        "sensitivity_analysis",
     ],
 )
 @pytest.mark.parametrize("runtime_name", ["local", "runpod_secure"])

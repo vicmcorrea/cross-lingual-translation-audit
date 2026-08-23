@@ -2,6 +2,7 @@
 
 from translation_audit.analysis.metrics import (
     automated_convergent_validation,
+    clustered_bootstrap_conditional_mean,
     clustered_bootstrap_mean,
     compute_retrieval_metrics,
     summarize_strata,
@@ -9,6 +10,7 @@ from translation_audit.analysis.metrics import (
 
 __all__ = [
     "automated_convergent_validation",
+    "clustered_bootstrap_conditional_mean",
     "clustered_bootstrap_mean",
     "compute_retrieval_metrics",
     "summarize_strata",

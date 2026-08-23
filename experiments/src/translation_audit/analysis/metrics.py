@@ -65,34 +65,42 @@ def iter_similarity_batches(
     batch_size: int,
     requested_device: str,
 ) -> tuple[Iterator[np.ndarray], str]:
-    """Compute bounded query batches on CUDA when available, otherwise NumPy CPU."""
+    """Compute bounded query batches on CUDA or MPS, otherwise NumPy CPU."""
     if batch_size <= 0:
         raise ValueError("Retrieval batch size must be positive")
-    if requested_device not in {"auto", "cpu", "cuda"}:
-        raise ValueError("Analysis compute device must be auto, cpu, or cuda")
+    if requested_device not in {"auto", "cpu", "cuda", "mps"}:
+        raise ValueError("Analysis compute device must be auto, cpu, cuda, or mps")
     torch_module: Any | None = None
+    torch_device: str | None = None
     if requested_device != "cpu":
         try:
             candidate: Any = importlib.import_module("torch")
-            if bool(candidate.cuda.is_available()):
+            if requested_device in {"auto", "cuda"} and bool(candidate.cuda.is_available()):
                 torch_module = candidate
+                torch_device = "cuda"
+            elif requested_device in {"auto", "mps"} and bool(
+                candidate.backends.mps.is_available()
+            ):
+                torch_module = candidate
+                torch_device = "mps"
         except (ImportError, AttributeError):
             torch_module = None
-    if requested_device == "cuda" and torch_module is None:
-        raise RuntimeError("CUDA retrieval was requested but is unavailable")
+            torch_device = None
+    if requested_device in {"cuda", "mps"} and torch_module is None:
+        raise RuntimeError(f"{requested_device.upper()} retrieval was requested but is unavailable")
 
-    if torch_module is not None:
-        document_tensor: Any = torch_module.from_numpy(documents).to("cuda")
+    if torch_module is not None and torch_device is not None:
+        document_tensor: Any = torch_module.from_numpy(documents).to(torch_device)
 
-        def cuda_batches() -> Iterator[np.ndarray]:
+        def accelerator_batches() -> Iterator[np.ndarray]:
             for start in range(0, queries.shape[0], batch_size):
                 query_tensor: Any = torch_module.from_numpy(
                     queries[start : start + batch_size]
-                ).to("cuda")
+                ).to(torch_device)
                 similarities: Any = query_tensor @ document_tensor.T
                 yield cast(np.ndarray, similarities.float().cpu().numpy())
 
-        return cuda_batches(), "cuda"
+        return accelerator_batches(), torch_device
 
     document_transpose = documents.T
 
@@ -116,6 +124,7 @@ def compute_retrieval_metrics(
     *,
     batch_size: int,
     requested_device: str,
+    deduplicate_targets: bool = False,
 ) -> RetrievalOutput:
     """Compute paired cosine and duplicate-aware full-corpus ranks in bounded batches."""
     required_embeddings = {
@@ -150,7 +159,27 @@ def compute_retrieval_metrics(
             raise ValueError("Query and document embedding shapes differ")
         group_column = "pt_duplicate_group_id" if direction == "en_to_pt" else "en_duplicate_group_id"
         group_ids = cast(list[str], metadata_sorted[group_column].to_list())
-        positives = _positive_indices(group_ids)
+        if deduplicate_targets:
+            group_values = np.asarray(group_ids, dtype=object)
+            group_reduction_order = np.argsort(group_values, kind="stable")
+            ordered_group_values = group_values[group_reduction_order]
+            group_starts = np.flatnonzero(
+                np.r_[True, ordered_group_values[1:] != ordered_group_values[:-1]]
+            )
+            ordered_groups = ordered_group_values[group_starts]
+            rank_index_by_group = {
+                str(group_id): index for index, group_id in enumerate(ordered_groups)
+            }
+            positives = [
+                np.asarray([rank_index_by_group[group_id]], dtype=np.int64)
+                for group_id in group_ids
+            ]
+            candidate_count = len(rank_index_by_group)
+        else:
+            group_reduction_order = None
+            group_starts = None
+            positives = _positive_indices(group_ids)
+            candidate_count = documents.shape[0]
         paired_cosine = np.sum(queries * documents, axis=1, dtype=np.float64)
         ranks = np.empty(queries.shape[0], dtype=np.int64)
         similarity_batches, device = iter_similarity_batches(
@@ -158,9 +187,16 @@ def compute_retrieval_metrics(
         )
         devices.add(device)
         query_offset = 0
-        document_indices = np.arange(documents.shape[0], dtype=np.int64)
+        document_indices = np.arange(candidate_count, dtype=np.int64)
         for similarity_batch in similarity_batches:
-            for local_index, row_scores in enumerate(similarity_batch):
+            ranking_batch = (
+                np.maximum.reduceat(
+                    similarity_batch[:, group_reduction_order], group_starts, axis=1
+                )
+                if group_reduction_order is not None and group_starts is not None
+                else similarity_batch
+            )
+            for local_index, row_scores in enumerate(ranking_batch):
                 query_index = query_offset + local_index
                 positive = positives[query_index]
                 positive_scores = row_scores[positive]
@@ -237,6 +273,99 @@ def clustered_bootstrap_mean(
     return estimate, float(lower), float(upper)
 
 
+def clustered_bootstrap_conditional_mean(
+    values: np.ndarray,
+    participants: Sequence[str],
+    cluster_universe: Sequence[str],
+    *,
+    repetitions: int,
+    confidence_level: float,
+    seed: int,
+    batch_size: int,
+) -> tuple[float, float, float]:
+    """Bootstrap a filtered row mean over the full respondent-record cluster universe."""
+    estimates, lower, upper = clustered_bootstrap_conditional_means(
+        np.asarray(values, dtype=np.float64)[:, np.newaxis],
+        participants,
+        cluster_universe,
+        repetitions=repetitions,
+        confidence_level=confidence_level,
+        seed=seed,
+        batch_size=batch_size,
+    )
+    return float(estimates[0]), float(lower[0]), float(upper[0])
+
+
+def clustered_bootstrap_conditional_means(
+    values: np.ndarray,
+    participants: Sequence[str],
+    cluster_universe: Sequence[str],
+    *,
+    repetitions: int,
+    confidence_level: float,
+    seed: int,
+    batch_size: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Bootstrap several filtered row means with shared full-universe cluster draws."""
+    numeric = np.asarray(values, dtype=np.float64)
+    if (
+        numeric.ndim != 2
+        or numeric.shape[0] != len(participants)
+        or numeric.shape[0] == 0
+        or numeric.shape[1] == 0
+    ):
+        raise ValueError("Conditional cluster bootstrap inputs are empty or misaligned")
+    if not np.isfinite(numeric).all():
+        raise ValueError("Conditional cluster bootstrap values must be finite")
+    if repetitions <= 0 or batch_size <= 0:
+        raise ValueError("Bootstrap repetitions and batch size must be positive")
+    if not 0.0 < confidence_level < 1.0:
+        raise ValueError("Bootstrap confidence level must be between zero and one")
+
+    universe = np.unique(np.asarray(list(cluster_universe), dtype=object))
+    eligible_participants = np.asarray(list(participants), dtype=object)
+    if universe.size == 0:
+        raise ValueError("Eligible clusters are not contained in the bootstrap universe")
+    eligible_indices = np.searchsorted(universe, eligible_participants)
+    if np.any(eligible_indices >= universe.size) or not np.array_equal(
+        universe[eligible_indices], eligible_participants
+    ):
+        raise ValueError("Eligible clusters are not contained in the bootstrap universe")
+    cluster_sums = np.zeros((universe.size, numeric.shape[1]), dtype=np.float64)
+    np.add.at(cluster_sums, eligible_indices, numeric)
+    cluster_counts = np.bincount(eligible_indices, minlength=universe.size)
+    estimates = numeric.mean(axis=0)
+    if universe.size == 1:
+        return estimates, estimates.copy(), estimates.copy()
+
+    rng = np.random.default_rng(seed)
+    bootstrap = np.empty((repetitions, numeric.shape[1]), dtype=np.float64)
+    completed = 0
+    attempts = 0
+    while completed < repetitions:
+        attempts += 1
+        if attempts > 100:
+            raise RuntimeError("Conditional bootstrap could not draw an eligible response")
+        draw_count = min(batch_size, repetitions - completed)
+        sampled = rng.integers(0, universe.size, size=(draw_count, universe.size))
+        offsets = np.arange(draw_count, dtype=np.int64)[:, np.newaxis] * universe.size
+        weights = np.bincount(
+            (sampled + offsets).ravel(), minlength=draw_count * universe.size
+        ).reshape(draw_count, universe.size)
+        denominators = weights @ cluster_counts
+        valid = denominators > 0
+        if not valid.any():
+            continue
+        numerators = weights @ cluster_sums
+        batch_estimates = numerators[valid] / denominators[valid, np.newaxis]
+        accepted = min(batch_estimates.shape[0], repetitions - completed)
+        bootstrap[completed : completed + accepted] = batch_estimates[:accepted]
+        completed += accepted
+    tail = (1.0 - confidence_level) / 2.0
+    lower, upper = np.quantile(bootstrap, [tail, 1.0 - tail], axis=0)
+    return estimates, lower, upper
+
+
 def _length_band_expression() -> pl.Expr:
     return (
         pl.when(pl.col("pt_word_count") <= 2)
@@ -286,6 +415,7 @@ def summarize_strata(
     confidence_level: float,
     seed: int,
     bootstrap_batch_size: int,
+    cluster_universe: Sequence[str] | None = None,
 ) -> pl.DataFrame:
     """Create descriptive primary and sensitivity estimates with clustered CIs."""
     required = {
@@ -302,65 +432,66 @@ def summarize_strata(
     if not required.issubset(frame.columns):
         raise ValueError("Analysis frame lacks required summary columns")
     rows: list[dict[str, object]] = []
+    all_clusters = (
+        cast(list[str], frame["participant_id"].to_list())
+        if cluster_universe is None
+        else list(cluster_universe)
+    )
     for stratum_type, stratum_value, subset in _strata(frame):
         if subset.is_empty():
             continue
         participants = cast(list[str], subset["participant_id"].to_list())
-        independent_metrics = ("cometkiwi_score", *_EMOTION_METRICS)
-        for metric in independent_metrics:
-            values = np.asarray(subset[metric].to_list(), dtype=np.float64)
-            estimate, lower, upper = clustered_bootstrap_mean(
-                values,
-                participants,
-                repetitions=repetitions,
-                confidence_level=confidence_level,
-                seed=_derived_seed(seed, stratum_type, stratum_value, metric),
-                batch_size=bootstrap_batch_size,
+        metric_specifications: list[tuple[str, str, str, str]] = [
+            (
+                "not_applicable",
+                metric,
+                metric,
+                _COMET_LABEL if metric == "cometkiwi_score" else "automated feature",
             )
+            for metric in ("cometkiwi_score", *_EMOTION_METRICS)
+        ]
+        for direction in _DIRECTIONS:
+            for metric in ("paired_cosine", "hit_at_1", "hit_at_5", "reciprocal_rank"):
+                metric_specifications.append(
+                    (
+                        direction,
+                        metric,
+                        f"{metric}_{direction}",
+                        "embedding-based automated measure",
+                    )
+                )
+        matrix = np.column_stack(
+            [
+                np.asarray(subset[column].to_list(), dtype=np.float64)
+                for _, _, column, _ in metric_specifications
+            ]
+        )
+        estimates, lowers, uppers = clustered_bootstrap_conditional_means(
+            matrix,
+            participants,
+            all_clusters,
+            repetitions=repetitions,
+            confidence_level=confidence_level,
+            seed=_derived_seed(seed, stratum_type, stratum_value),
+            batch_size=bootstrap_batch_size,
+        )
+        for index, (direction, metric, _, evidence_role) in enumerate(metric_specifications):
             rows.append(
                 {
                     "stratum_type": stratum_type,
                     "stratum_value": stratum_value,
-                    "direction": "not_applicable",
+                    "direction": direction,
                     "metric": metric,
                     "n_pairs": subset.height,
                     "n_participants": subset["participant_id"].n_unique(),
-                    "estimate": estimate,
-                    "ci_lower": lower,
-                    "ci_upper": upper,
+                    "estimate": float(estimates[index]),
+                    "ci_lower": float(lowers[index]),
+                    "ci_upper": float(uppers[index]),
                     "confidence_level": confidence_level,
                     "bootstrap_repetitions": repetitions,
-                    "evidence_role": _COMET_LABEL if metric == "cometkiwi_score" else "automated feature",
+                    "evidence_role": evidence_role,
                 }
             )
-        for direction in _DIRECTIONS:
-            for metric in ("paired_cosine", "hit_at_1", "hit_at_5", "reciprocal_rank"):
-                column = f"{metric}_{direction}"
-                values = np.asarray(subset[column].to_list(), dtype=np.float64)
-                estimate, lower, upper = clustered_bootstrap_mean(
-                    values,
-                    participants,
-                    repetitions=repetitions,
-                    confidence_level=confidence_level,
-                    seed=_derived_seed(seed, stratum_type, stratum_value, direction, metric),
-                    batch_size=bootstrap_batch_size,
-                )
-                rows.append(
-                    {
-                        "stratum_type": stratum_type,
-                        "stratum_value": stratum_value,
-                        "direction": direction,
-                        "metric": metric,
-                        "n_pairs": subset.height,
-                        "n_participants": subset["participant_id"].n_unique(),
-                        "estimate": estimate,
-                        "ci_lower": lower,
-                        "ci_upper": upper,
-                        "confidence_level": confidence_level,
-                        "bootstrap_repetitions": repetitions,
-                        "evidence_role": "embedding-based automated measure",
-                    }
-                )
     return pl.DataFrame(rows).sort(["stratum_type", "stratum_value", "direction", "metric"])
 
 
