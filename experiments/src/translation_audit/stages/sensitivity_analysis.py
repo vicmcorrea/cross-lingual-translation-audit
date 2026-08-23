@@ -429,7 +429,7 @@ class SensitivityAnalysisStage:
                 "scale_embedding_model": scale_manifest.get("embedding_model"),
                 "emotion_repository": emotion_manifest.get("repository"),
                 "target_deduplication": {
-                    "policy": "one deterministic representative per target-language duplicate group",
+                    "policy": "one target-language duplicate group scored by the maximum member similarity",
                     "query_rows_retained": primary.height,
                     "candidate_counts": candidate_counts,
                     "device": deduplicated_retrieval.device,

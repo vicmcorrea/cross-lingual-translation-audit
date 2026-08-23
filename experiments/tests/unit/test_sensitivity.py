@@ -94,6 +94,16 @@ def test_language_model_and_affective_sensitivities_are_clustered_and_paired() -
         & (pl.col("metric") == "both_languages_match")
     )
     assert both["estimate"].item() == 4 / 6
+    expected_language_rates = {
+        row["metric"]: row["estimate"]
+        for row in coverage.filter(pl.col("stratum_type") == "overall").iter_rows(
+            named=True
+        )
+    }
+    assert expected_language_rates["pt_ambiguous"] == 0.0
+    assert expected_language_rates["en_ambiguous"] == 1 / 6
+    assert expected_language_rates["pt_explicit_mismatch"] == 1 / 6
+    assert expected_language_rates["en_explicit_mismatch"] == 0.0
 
     comparison = primary.with_columns(
         pl.Series("hit_at_1_en_to_pt", [True, True, True, False, True, True])

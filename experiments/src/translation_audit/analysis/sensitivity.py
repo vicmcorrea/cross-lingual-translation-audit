@@ -175,6 +175,12 @@ def summarize_language_matched(
         metrics: Mapping[str, pl.Series] = {
             "pt_matches_expected": subset["pt_matches_expected"],
             "en_matches_expected": subset["en_matches_expected"],
+            "pt_ambiguous": subset["pt_ambiguous"],
+            "en_ambiguous": subset["en_ambiguous"],
+            "pt_explicit_mismatch": ~subset["pt_matches_expected"]
+            & ~subset["pt_ambiguous"],
+            "en_explicit_mismatch": ~subset["en_matches_expected"]
+            & ~subset["en_ambiguous"],
             "both_languages_match": subset["both_languages_match"],
             "diagnostic_ambiguous_only": subset["diagnostic_ambiguous_only"],
             "diagnostic_explicit_mismatch": subset["diagnostic_explicit_mismatch"],
