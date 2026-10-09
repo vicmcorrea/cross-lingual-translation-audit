@@ -1,10 +1,12 @@
-# Cross-Lingual Translation Audit
+# Cross-lingual translation audit
 
-This repository contains the analysis code for a reference-free audit of paired Portuguese and English survey translations. It includes the Hydra pipeline, frozen model configurations, sensitivity-analysis implementation, and synthetic tests.
+Code for [When Short Responses Are Hard to Distinguish in Translation Audits](https://openreview.net/forum?id=Kq2qqKPOUE), accepted at MultiPsyche 2026.
 
-No survey responses, source identifiers, credentials, or author metadata are included.
+Includes frozen configurations, sensitivity analyses, and synthetic tests. Survey text is confidential and excluded. Reproducing results requires authorized data access.
 
 ## Verify
+
+Python 3.14 and uv are required.
 
 ```bash
 cd experiments
@@ -12,4 +14,8 @@ uv sync --frozen
 uv run pytest
 ```
 
-The default Hydra configuration is non-executing and can be inspected with `uv run translation-audit --cfg job`.
+Preview the configuration:
+
+```bash
+uv run translation-audit --cfg job
+```
